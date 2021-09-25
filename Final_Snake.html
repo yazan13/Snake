@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Mini Game - Snake</title>
+</head>
+
+<body>
+  <!-- Score Anzeige -->
+  <div id="score">0</div>
+
+  <!-- Spiel-board größe -->
+  <canvas id="snakeboard" width="400" height="400"></canvas> 
+
+  <style>
+    /* Board position */
+    #snakeboard {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Score position */
+    #score {
+      text-align: center;
+      font-size: 140px;
+    }
+  </style>
+</body>
+
+<script>
+  // Spieleigenschaften   
+  // QUELLE: https://htmlcolorcodes.com/color-names/
+  const board_border = 'black';     // Randfrabe
+  const board_background = "Khaki"; // Hintergrund
+  const snake_col = 'SaddleBrown';  // Schlange
+  const snake_border = 'Peru';      // Schlangenrand
+  const apple_col = 'red';          // Apfelfarbe
+  const apple_border = 'black';     // Apfelrand
+  let movement_speed = 100;         // Bewegungstempo zu beginn
+  let movement_factor = 1;          // Änderung der bew. geschw. nach einsammeln eines apfels
+  let score = 0;                    // Start Score
+
+  // Start- länge und position der Schlange
+  // Jedes array stellt ein 10x10px feld dar
+  let snake = [
+    { x: 220, y: 200 },
+    { x: 210, y: 200 },
+    { x: 200, y: 200 },
+    { x: 190, y: 200 },
+    { x: 180, y: 200 }
+  ]
+
+  // Erstellen der Apfel variablen.
+  let apple_x;
+  let apple_y;
+  // Achsenvariablen für die bewegung
+  let dx = 10;
+  let dy = 0;
+  let changing_direction = false;
+
+
+  // Spielbereich Eigenschaften.
+  const snakeboard = document.getElementById("snakeboard");
+  const snakeboard_ctx = snakeboard.getContext("2d");
+  document.addEventListener("keydown", change_direction);
+
+  // Spielbeginn.
+  main();
+  // Erster Apfel.
+  rnd_apple();
+
+  // Spiel-Loop
+  function main() {
+    if (gameOver()) return;
+    changing_direction = false;
+    setTimeout(function tick() {
+      drawBoard();
+      drawApple();
+      snake_movement();
+      drawSnake();
+      main();
+    }, movement_speed)
+  }
+
+  // Canvas eigenschaften des Spielboards
+  function drawBoard() {
+    snakeboard_ctx.fillStyle = board_background;
+    snakeboard_ctx.strokestyle = board_border;
+    snakeboard_ctx.fillRect(0, 0, snakeboard.width, snakeboard.height);
+    snakeboard_ctx.strokeRect(0, 0, snakeboard.width, snakeboard.height);
+  } 
+
+  // Canvas eigenschaften für den Apfel
+  function drawApple() {
+    snakeboard_ctx.fillStyle = apple_col;
+    snakeboard_ctx.strokestyle = apple_border;
+    snakeboard_ctx.fillRect(apple_x, apple_y, 10, 10);
+    snakeboard_ctx.strokeRect(apple_x, apple_y, 10, 10);
+  }
+
+  // Canvas eigenschaften für die Schlangenteile
+  function drawSnakePart(snakePart) {
+    snakeboard_ctx.fillStyle = snake_col;
+    snakeboard_ctx.strokestyle = snake_border;
+    snakeboard_ctx.fillRect(snakePart.x, snakePart.y, 10, 10);
+    snakeboard_ctx.strokeRect(snakePart.x, snakePart.y, 10, 10);
+  }
+
+  // Zeichnen jedes Arrays der Schlange
+  function drawSnake() {
+    snake.forEach(drawSnakePart)
+  }
+
+  // Spielende bedingungen.
+  function gameOver() {
+    // Spielende: Schlangen kollision
+    for (let i = 4; i < snake.length; i++) {
+      if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true
+    }
+    // Spielende: Wenn die Schlange das Spielfeld verlässt
+    const hitLeftWall = snake[0].x < 0;
+    const hitToptWall = snake[0].y < 0;
+    const hitRightWall = snake[0].x > snakeboard.width - 10;    
+    const hitBottomWall = snake[0].y > snakeboard.height - 10;
+    return hitLeftWall || hitToptWall || hitRightWall || hitBottomWall
+  }
+
+  // Zufallsberechnung der Achsenwerte für den Apfel
+  function apple_gen(min, max) {
+    return Math.round((Math.random() * (max - min) + min) / 10) * 10;
+  }
+
+  // Zufallsfunktion für Apfelerstellung
+  function rnd_apple() {    
+    apple_x = apple_gen(0, snakeboard.width - 10);    
+    apple_y = apple_gen(0, snakeboard.height - 10);
+    // Verhindert das der Apfel an der aktueller position aller Schlangenteile erscheint.
+    snake.forEach(function has_snake_eaten_food(part) {
+      const pos_now = part.x == apple_x && part.y == apple_y;
+      if (pos_now) rnd_apple();
+    });
+  }
+
+  // QUELLE: https://keycode.info/ 
+  // Zuweisung der Bewegungstasten 
+  function change_direction(event) {
+    const UP_KEY = 87;     // W
+    const DOWN_KEY = 83;   // S
+    const LEFT_KEY = 65;   // A
+    const RIGHT_KEY = 68;  // D
+
+    // Bewegungen der Schlange
+    if (changing_direction) return;
+    changing_direction = true;
+    const keyPressed = event.keyCode;
+    const goingUp = dy === -10;
+    const goingDown = dy === 10;
+    const goingRight = dx === 10;
+    const goingLeft = dx === -10;
+    // Verhindern von Links nach Rechts 
+    if (keyPressed === LEFT_KEY && !goingRight) {
+      dx = -10;
+      dy = 0;
+    }
+    // Verhindern von Oben nach Unten 
+    if (keyPressed === UP_KEY && !goingDown) {
+      dx = 0;
+      dy = -10;
+    }
+    // Verhindern von Rechts nach Links 
+    if (keyPressed === RIGHT_KEY && !goingLeft) {
+      dx = 10;
+      dy = 0;
+    }
+    // Verhindern von Oben nach Unten
+    if (keyPressed === DOWN_KEY && !goingUp) {
+      dx = 0;
+      dy = 10;
+    }
+  }
+
+  // Schlangenbewegung via Array unshift und pop.
+  function snake_movement() {
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };    
+    snake.unshift(head);
+    const found_apple = snake[0].x === apple_x && snake[0].y === apple_y;
+    // Wenn ein apfel gesammelt wurde...
+    if (found_apple) {    
+      //... Erhöht sich der Scorewert  
+      score += 1;
+      //... Erhöht sich das Bewegunstempo
+      movement_speed -= movement_factor;     
+      document.getElementById('score').innerHTML = score; 
+      // und es erscheint ein neuer Apfel     
+      rnd_apple();
+    } else {      
+      snake.pop();
+    }
+  }
+
+</script>
+
+</html>
